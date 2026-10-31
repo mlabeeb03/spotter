@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ trip.start.name }} to {{ trip.finish.name }}</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    header { padding: 8px 16px; }
+    #map { height: calc(100vh - 60px); }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>{{ trip.start.name }} &rarr; {{ trip.finish.name }}</strong>:
+    {{ trip.distance_miles }} miles, {{ trip.fuel_stops|length }} fuel stop{{ trip.fuel_stops|length|pluralize }},
+    {{ trip.total_gallons }} gallons, ${{ trip.total_fuel_cost|floatformat:2 }}
+  </header>
+  <div id="map"></div>
+  {{ trip|json_script:"trip-data" }}
+  <script>
+    const trip = JSON.parse(document.getElementById("trip-data").textContent);
+    const map = L.map("map");
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
+
+    const line = L.geoJSON(trip.route, { style: { color: "#2563eb", weight: 4 } }).addTo(map);
+    map.fitBounds(line.getBounds());
+
+    L.marker([trip.start.lat, trip.start.lon]).addTo(map).bindPopup("Start: " + trip.start.name);
+    L.marker([trip.finish.lat, trip.finish.lon]).addTo(map).bindPopup("Finish: " + trip.finish.name);
+
+    for (const stop of trip.fuel_stops) {
+      const popup = document.createElement("div");
+      popup.innerText = `${stop.name}\n${stop.address}, ${stop.city}, ${stop.state}\n` +
+        `$${stop.price_per_gallon}/gal, ${stop.gallons} gal = $${stop.cost}\n` +
+        `Mile ${stop.miles_from_start}`;
+      L.circleMarker([stop.lat, stop.lon], { radius: 8, color: "#dc2626", fillOpacity: 0.9 })
+        .addTo(map).bindPopup(popup);
+    }
+  </script>
+</body>
+</html>
